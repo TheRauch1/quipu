@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+TestResults/
+*.user
+.vs/
+.vscode/
+.idea/
+.claude/
+*.bak*
+quipu.yaml

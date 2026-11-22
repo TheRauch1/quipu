@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quipu</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='1' stop-color='%23ff7a59'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Ctext x='16' y='23' font-family='Segoe UI,Arial' font-weight='700' font-size='19' fill='white' text-anchor='middle'%3EQ%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">Q</div>
+        <div>
+          <div class="brand-name">Quipu</div>
+          <div class="brand-sub" id="brand-version">llama.cpp manager</div>
+        </div>
+      </div>
+      <nav id="nav">
+        <a data-view="models" class="active"><span class="i">◧</span>Models</a>
+        <a data-view="discover"><span class="i">⌕</span>Discover</a>
+        <a data-view="llamacpp"><span class="i">⚙</span>llama.cpp</a>
+        <a data-view="tokens"><span class="i">⚿</span>HF tokens</a>
+        <a data-view="config"><span class="i">≡</span>Config</a>
+      </nav>
+      <div class="side-foot">
+        <div class="gpu-card" id="gpu-card"></div>
+        <div class="side-links">
+          <a href="/docs" target="_blank">API docs ↗</a>
+          <a href="/openapi/v1.json" target="_blank">OpenAPI</a>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <h1 id="view-title">Models</h1>
+        <div class="chips" id="status-chips"></div>
+      </header>
+      <div id="config-error" class="banner error hidden"></div>
+      <div id="security-warnings" class="banner warn hidden"></div>
+
+      <!-- MODELS -->
+      <section id="view-models" class="view">
+        <div class="toolbar">
+          <button class="btn primary" id="btn-new-model">＋ New model</button>
+          <button class="btn" data-goto="discover">Find on Hugging Face</button>
+          <div class="spacer"></div>
+          <button class="btn ghost" id="btn-stop-all">Stop all</button>
+        </div>
+        <div id="models-grid" class="grid"></div>
+        <h2 class="section-title">Files on disk <span class="muted" id="disk-summary"></span></h2>
+        <div class="card flush"><table class="table" id="files-table"></table></div>
+      </section>
+
+      <!-- DISCOVER -->
+      <section id="view-discover" class="view hidden">
+        <form class="search" id="hf-search-form">
+          <input id="hf-query" placeholder="Search GGUF models on Hugging Face, e.g. qwen3, gemma, llama… or paste owner/repo" autocomplete="off">
+          <button class="btn primary">Search</button>
+        </form>
+        <div class="split">
+          <div class="card flush list" id="hf-results"><div class="empty">Search for a model to get started.</div></div>
+          <div class="card" id="hf-files"><div class="empty">Pick a repository to see its quantizations.</div></div>
+        </div>
+      </section>
+
+      <!-- LLAMA.CPP -->
+      <section id="view-llamacpp" class="view hidden">
+        <div class="hero card" id="build-hero"></div>
+        <div class="row2">
+          <div class="card">
+            <h3>Build settings</h3>
+            <div class="form grid2">
+              <label>Backend
+                <select id="set-backend">
+                  <option value="auto">auto (detect GPU)</option>
+                  <option value="cuda">cuda — NVIDIA</option>
+                  <option value="vulkan">vulkan — any GPU</option>
+                  <option value="cpu">cpu</option>
+                  <option value="rocm">rocm — AMD</option>
+                  <option value="sycl">sycl — Intel</option>
+                  <option value="openvino">openvino</option>
+                </select>
+              </label>
+              <label>CUDA version
+                <input id="set-cuda" placeholder="auto">
+              </label>
+              <label>Keep builds
+                <input id="set-keep" type="number" min="0">
+              </label>
+              <label class="check"><input type="checkbox" id="set-autoupdate"> Install newest release on startup</label>
+            </div>
+            <div class="actions"><button class="btn" id="btn-save-build-settings">Save</button></div>
+          </div>
+          <div class="card">
+            <h3>Installed builds</h3>
+            <table class="table" id="builds-table"></table>
+            <h3 class="mt">Install from another repo</h3>
+            <p class="muted small">For forks a model card asks for (e.g. <code>unslothai/llama.cpp</code>). Leave tag empty for its newest release, then set the model's build to <code>owner/repo@tag</code>.</p>
+            <form class="form inline" id="fork-form">
+              <input id="fork-repo" placeholder="owner/repo" style="flex:2;min-width:160px" required>
+              <input id="fork-tag" placeholder="tag (optional)" style="flex:2;min-width:140px">
+              <button class="btn">Install</button>
+            </form>
+          </div>
+        </div>
+        <h2 class="section-title">Releases on GitHub <span class="muted" id="releases-note"></span>
+          <button class="btn small ghost" id="btn-refresh-releases">Refresh</button></h2>
+        <div class="card flush"><table class="table" id="releases-table"></table></div>
+      </section>
+
+      <!-- TOKENS -->
+      <section id="view-tokens" class="view hidden">
+        <div class="row2">
+          <div class="card">
+            <h3>Add a token</h3>
+            <p class="muted">Needed for gated/private repos (Llama, Gemma…). Tokens are encrypted with Windows DPAPI for your user and never written to <code>quipu.yaml</code>. Create one at <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a> (read access is enough).</p>
+            <form class="form" id="token-form">
+              <label>Name <input id="token-name" value="default" required pattern="[A-Za-z0-9._-]+"></label>
+              <label>Token <input id="token-value" type="password" placeholder="hf_…" required autocomplete="off"></label>
+              <label class="check"><input type="checkbox" id="token-activate" checked> Use this token</label>
+              <div class="actions"><button class="btn primary">Validate &amp; save</button></div>
+            </form>
+          </div>
+          <div class="card">
+            <h3>Stored tokens</h3>
+            <div id="tokens-list"></div>
+            <p class="muted small" id="tokens-foot"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONFIG -->
+      <section id="view-config" class="view hidden">
+        <div class="row2">
+          <div class="card">
+            <h3>Locations</h3>
+            <div class="form">
+              <label>Models directory <input id="set-models"></label>
+              <label>llama.cpp builds <input id="set-installs"></label>
+              <label>Logs <input id="set-logs"></label>
+            </div>
+            <h3 class="mt">Server</h3>
+            <div class="form grid2">
+              <label>Listen URL <span class="hint">http://0.0.0.0:5250 for the local network; needs a Quipu restart</span><input id="set-listen"></label>
+              <label>Allowed networks <span class="hint">comma-separated, e.g. 10.0.0.0/24; localhost always works; empty = other machines need the API key</span><input id="set-networks" placeholder="(none)"></label>
+              <label>First model port <input id="set-portstart" type="number"></label>
+              <label>Models at once <span class="hint">starting another stops the least recently used; 0 = no limit</span><input id="set-maxactive" type="number" min="0"></label>
+              <label>API key <input id="set-apikey" type="password" placeholder="(none — local only)" autocomplete="off"></label>
+              <label class="check"><input type="checkbox" id="set-openbrowser"> Open dashboard on start</label>
+            </div>
+            <p class="muted small">Changing the listen URL takes effect after restarting Quipu.</p>
+            <div class="actions"><button class="btn primary" id="btn-save-settings">Save settings</button></div>
+          </div>
+          <div class="card">
+            <h3>Default start parameters</h3>
+            <p class="muted small">Apply to every model unless the model overrides them.</p>
+            <div id="defaults-form"></div>
+            <div class="actions"><button class="btn primary" id="btn-save-defaults">Save defaults</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>quipu.yaml <span class="muted small" id="config-path"></span></h3>
+            <div class="spacer"></div>
+            <button class="btn small ghost" id="btn-yaml-reload">Reload</button>
+            <button class="btn small" id="btn-yaml-validate">Validate</button>
+            <button class="btn small primary" id="btn-yaml-save">Save</button>
+          </div>
+          <textarea id="yaml-editor" spellcheck="false"></textarea>
+          <div id="yaml-result" class="muted small"></div>
+        </div>
+        <div class="card">
+          <h3>Apply</h3>
+          <p class="muted">Make this machine match the config: install the wanted llama.cpp build, download missing models, start autostart models.</p>
+          <div class="form inline">
+            <label class="check"><input type="checkbox" id="apply-update"> Update llama.cpp to newest</label>
+            <label class="check"><input type="checkbox" id="apply-download" checked> Download missing models</label>
+            <label class="check"><input type="checkbox" id="apply-start" checked> Start autostart models</label>
+            <label class="check"><input type="checkbox" id="apply-restart"> Restart changed models</label>
+            <button class="btn primary" id="btn-apply">Apply</button>
+          </div>
+          <ul id="apply-result" class="plain"></ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- jobs dock -->
+  <div id="jobs-dock" class="jobs hidden"></div>
+
+  <!-- drawer -->
+  <div id="drawer-backdrop" class="backdrop hidden"></div>
+  <aside id="drawer" class="drawer hidden">
+    <div class="drawer-head">
+      <h2 id="drawer-title"></h2>
+      <button class="btn ghost icon" id="drawer-close" title="Close">✕</button>
+    </div>
+    <div id="drawer-body" class="drawer-body"></div>
+    <div id="drawer-foot" class="drawer-foot"></div>
+  </aside>
+
+  <div id="toasts" class="toasts"></div>
+  <script src="app.js"></script>
+</body>
+</html>

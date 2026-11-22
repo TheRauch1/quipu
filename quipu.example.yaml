@@ -1,0 +1,88 @@
+# Quipu configuration (config as code) - annotated example.
+# Copy to %USERPROFILE%\Quipu\quipu.yaml (or next to Quipu.exe) and adjust. The paths below put
+# everything on D: as an example; by default Quipu uses folders next to the config file.
+# Quipu hot-reloads this file on save; POST /api/apply (or the Apply button) acts on it.
+
+paths:
+  models: D:\llama\models          # GGUF files; relative model paths resolve against this
+  installs: D:\llama\builds        # one folder per llama.cpp build, e.g. b12617-cuda13.5
+  logs: D:\llama\logs              # quipu.log + <model>.log per server
+
+llamaCpp:
+  repo: ggml-org/llama.cpp         # GitHub repo to pull Windows release assets from
+  backend: auto                    # auto | cuda | vulkan | cpu | rocm | sycl | openvino  (auto = cuda when an NVIDIA GPU is present)
+  cudaVersion: auto                # auto = highest CUDA build offered (13.x for RTX 50xx), or e.g. "12.4"
+  version: latest                  # latest = newest installed build, or pin one: b12617 / b12617-cuda13.5
+  autoUpdate: false                # install the newest release every time Quipu starts
+  keepBuilds: 3                    # old builds to keep after an install (0 = keep everything)
+
+server:
+  listen: http://127.0.0.1:5250    # dashboard + REST API + MCP (/mcp). Keep it on 127.0.0.1 unless you set apiKey
+  # listen: http://0.0.0.0:5250    # all interfaces, to use it from the local network (restart Quipu after changing)
+  # allowedNetworks: [10.0.0.0/24] # who may reach the dashboard/API/MCP from other machines; localhost always works.
+                                   # empty = other machines only with apiKey (refused without one)
+  # apiKey: change-me              # require X-Api-Key / Bearer on /api and /mcp
+  openBrowserOnStart: true
+  modelPortStart: 8080             # models without a fixed port get the first free one from here
+  maxActiveModels: 1               # models running at once; starting another stops the least recently used (0 = no limit)
+
+huggingFace:
+  endpoint: https://huggingface.co
+  activeToken: default             # name of a token stored via the dashboard/API (encrypted with DPAPI, never in this file)
+
+# Applied to every model unless the model sets its own value. Omit a key to use llama.cpp's default.
+defaults:
+  host: 127.0.0.1                  # 0.0.0.0 = model servers reachable from the network too
+  flashAttn: auto                  # -fa on|off|auto
+  idleUnloadMinutes: 15            # free VRAM after 15 min without requests; the server keeps its port and
+                                   # reloads the model on the next request (--sleep-idle-seconds). 0 = never
+  # gpuLayers: all                 # -ngl  number | auto | all   (llama.cpp default: auto + -fit on)
+  # ctxSize: 16384                 # -c    (0 = model maximum)
+  # parallel: 1                    # -np
+  # cacheTypeK: q8_0               # -ctk
+  # cacheTypeV: q8_0               # -ctv
+  # args: [--metrics]              # extra raw args, appended for all models
+  # env: { CUDA_VISIBLE_DEVICES: "0" }
+
+models:
+  qwen3-8b:
+    description: Fast general chat model
+    hf:                            # where to (re)download from - Apply downloads it if the file is missing
+      repo: unsloth/Qwen3-8B-GGUF
+      file: Qwen3-8B-Q4_K_M.gguf
+    file: unsloth\Qwen3-8B-GGUF\Qwen3-8B-Q4_K_M.gguf   # optional; defaults to <models>\<owner>\<repo>\<file>
+    port: 8081
+    autostart: true
+    idleUnloadMinutes: 0           # keep this one loaded all the time
+    ctxSize: 32768
+    gpuLayers: all
+    args: [--temp, "0.6", --top-k, "20", --top-p, "0.95"]
+
+  gemma-vision:
+    hf:
+      repo: unsloth/gemma-4-12b-it-GGUF
+      file: gemma-4-12b-it-Q4_K_M.gguf
+      mmproj: mmproj-F16.gguf        # vision projector, downloaded alongside
+    ctxSize: 16384
+    alias: gemma                     # model id on the OpenAI API (default: profile name)
+
+  inkling-2-mini:                    # needs Unsloth's llama.cpp fork (looped layout + DSpark), per the model card
+    build: unslothai/llama.cpp@b12588-mix-c0c3de8   # per-model build; Apply installs it if missing
+    hf:
+      repo: unsloth/Inkling-2-Mini-GGUF
+      file: Inkling-2-Mini-UD-Q4_K_M.gguf
+      mmproj: mmproj-F16.gguf
+      draft: dspark/dspark-Inkling-2-Mini-BF16.gguf  # speculative-decoding drafter (-md)
+    specType: draft-dspark           # inferred from the draft name when omitted
+    ctxSize: 65536
+    gpuLayers: 99
+    jinja: true
+    args: [--spec-draft-n-max, "2", --n-gpu-layers-draft, "99", --temp, "1.0", --top-p, "1.0", --top-k, "0", --min-p, "0.0", -n, "16384"]
+
+  my-local-model:
+    file: D:\somewhere\else\model.gguf   # absolute paths work too
+    parallel: 4
+    cacheTypeK: q8_0
+    cacheTypeV: q8_0
+    env:
+      GGML_CUDA_GRAPH_OPT: "1"

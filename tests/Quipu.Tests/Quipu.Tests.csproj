@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    The app targets net11.0-windows (WinForms tray), which can't run on the Linux build container.
+    The tests compile the platform-neutral source files directly instead of referencing the app project,
+    so they run anywhere: "docker build target test" (see Dockerfile) or dotnet test.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\Quipu\Config\QuipuConfig.cs" Link="App\QuipuConfig.cs" />
+    <Compile Include="..\..\src\Quipu\Config\ConfigStore.cs" Link="App\ConfigStore.cs" />
+    <Compile Include="..\..\src\Quipu\Config\NetworkAccess.cs" Link="App\NetworkAccess.cs" />
+    <Compile Include="..\..\src\Quipu\Services\CommandBuilder.cs" Link="App\CommandBuilder.cs" />
+    <Compile Include="..\..\src\Quipu\Services\AssetPicker.cs" Link="App\AssetPicker.cs" />
+    <Compile Include="..\..\src\Quipu\Services\BuildSpec.cs" Link="App\BuildSpec.cs" />
+    <Compile Include="..\..\src\Quipu\Services\JobService.cs" Link="App\JobService.cs" />
+    <Compile Include="..\..\src\Quipu\Api\Middleware.cs" Link="App\Middleware.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+    <PackageReference Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
